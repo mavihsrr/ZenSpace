@@ -7,6 +7,9 @@ import speech_recognition as sr
 import requests
 from dotenv import load_dotenv
 import time
+from langchain_together import ChatTogether
+from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
 
 
 load_dotenv()
@@ -20,9 +23,6 @@ API_URL = "https://router.huggingface.co/hf-inference/models/facebook/musicgen-s
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 ##CHATBOT
-from langchain_together import ChatTogether
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
 
 llm = ChatTogether(
     model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
