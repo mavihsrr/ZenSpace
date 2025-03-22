@@ -10,6 +10,7 @@ import time
 from langchain_together import ChatTogether
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
+from pydub import AudioSegment
 
 
 load_dotenv()
@@ -91,16 +92,29 @@ def tts_female3():
 
 
 ##SPEECH TO TEXT
-def speech_to_text(audio_file):
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(audio_file) as source:
-        audio_data = recognizer.record(source)
+
+
+def convert_audio_to_wav(input_file, output_file):
+    """ Convert any audio format to WAV (PCM S16LE) """
     try:
-        return recognizer.recognize_google(audio_data)
+        audio = AudioSegment.from_file(input_file)  # Auto-detect format
+        audio = audio.set_channels(1).set_frame_rate(16000).set_sample_width(2)  # Mono, 16kHz, 16-bit PCM
+        audio.export(output_file, format="wav")
+        return output_file, None  # Success: return file path and no error
+    except Exception as e:
+        return None, str(e)  # Failure: return None and error message
+
+def speech_to_text(audio_file):
+    """ Convert speech to text from WAV audio """
+    recognizer = sr.Recognizer()
+    try:
+        with sr.AudioFile(audio_file) as source:
+            audio_data = recognizer.record(source)
+        return recognizer.recognize_google(audio_data), None
     except sr.UnknownValueError:
-        return "Sorry, I couldn't understand what you said."
+        return None, "Sorry, I couldn't understand what you said."
     except sr.RequestError:
-        return "Speech recognition service is unavailable."
+        return None, "Speech recognition service is unavailable."
 
 @app.route('/talk', methods=['POST'])
 def talk():
@@ -108,13 +122,21 @@ def talk():
         return jsonify({"error": "No audio file uploaded."}), 400
 
     audio_file = request.files['audio']
+    
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio:
-        audio_file.save(temp_audio.name)
+        temp_wav_path = temp_audio.name
 
-    user_text = speech_to_text(temp_audio.name)
+    converted_file, error = convert_audio_to_wav(audio_file, temp_wav_path)
+    if error:
+        return jsonify({"error": f"Audio conversion failed: {error}"}), 500
+
+    user_text, error = speech_to_text(converted_file)
+    if error:
+        return jsonify({"error": error}), 500
+
     response_text = get_llm_response(user_text)
     output_file = generate_speech_sync(response_text, "en-GB-SoniaNeural")
-    
+
     return send_file(output_file, mimetype="audio/mpeg", as_attachment=True, download_name="response.mp3")
 
 

@@ -13,7 +13,7 @@ def initiate_call(user_phone_number):
     # Data payload for the call request
     data = {
         "phone_number": user_phone_number,  # Dynamic phone number input
-        "voice": "josh",
+        "voice": "Cailee",
         "wait_for_greeting": True,
         "record": True,
         "amd": False,
