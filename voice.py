@@ -6,7 +6,6 @@ OUTPUT_FILE = "test.mp3"
 
 
 def main() -> None:
-    """Main function"""
     communicate = edge_tts.Communicate(TEXT, VOICE)
     communicate.save_sync(OUTPUT_FILE)
 
