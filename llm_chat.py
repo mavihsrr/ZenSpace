@@ -6,6 +6,7 @@ import tempfile
 import speech_recognition as sr
 import requests
 from dotenv import load_dotenv
+import time
 
 
 load_dotenv()
@@ -15,7 +16,7 @@ app = Flask(__name__)
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
 
-API_URL = "https://router.huggingface.co/hf-inference/models/facebook/musicgen-medium"
+API_URL = "https://router.huggingface.co/hf-inference/models/facebook/musicgen-small"
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 ##CHATBOT
@@ -118,14 +119,21 @@ def talk():
 
 
 ## MUSIC GENERATION  
-def query_huggingface(payload):
-    """ Query Hugging Face API with a timeout """
-    try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        return response.content
-    except requests.exceptions.RequestException as e:
-        return None, str(e)
+
+
+def query_huggingface(payload, max_retries=3, timeout=60):
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=timeout)
+            response.raise_for_status()
+            return response.content, None  # Return audio bytes and no error
+        except requests.exceptions.Timeout:
+            if attempt < max_retries - 1:
+                time.sleep(5)  # Wait before retrying
+                continue
+            return None, "Request timed out after multiple attempts"
+        except requests.exceptions.RequestException as e:
+            return None, str(e)
 
 @app.route('/generate-music', methods=['POST'])
 def generate_music():
@@ -144,6 +152,7 @@ def generate_music():
             f.write(audio_bytes)
 
     return send_file(output_file, mimetype="audio/wav", as_attachment=True, download_name="generated_music.wav")
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
